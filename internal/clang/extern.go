@@ -106,7 +106,16 @@ func parseExtern(doc *ast.CommentGroup) (externDecl, bool) {
 // funcExtern returns the extern metadata for a function call
 // if the function is marked as extern.
 func (g *Generator) funcExtern(call *ast.CallExpr) (externDecl, bool) {
-	switch fun := call.Fun.(type) {
+	callFun := call.Fun
+	// Remove the type parameters if the call is a generic function.
+	switch f := callFun.(type) {
+	case *ast.IndexExpr:
+		callFun = f.X
+	case *ast.IndexListExpr:
+		callFun = f.X
+	}
+	// Get the extern metadata for the function being called.
+	switch fun := callFun.(type) {
 	case *ast.Ident:
 		// Local package call.
 		return g.getExtern(g.types.Uses[fun])

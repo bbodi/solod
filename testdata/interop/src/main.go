@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"unsafe"
 
 	"example/interop/src/sub"
 )
@@ -61,6 +62,17 @@ func acc_name(acc *Account) string {
 	return fmt.Sprintf("%s", acc.name)
 }
 
+// sizeOf maps to the C sizeof operator.
+//
+//so:extern sizeof
+func sizeOf[T any]() int {
+	var v T
+	return int(unsafe.Sizeof(v))
+}
+
+// A generic extern call is allowed at package level.
+var accSize = sizeOf[Account]()
+
 //so:extern unsigned char
 type uchar uint8
 
@@ -106,6 +118,12 @@ func main() {
 		// Extern constants.
 		if maxInt64 <= int64(1<<62) {
 			panic("maxInt64 <= 1<<62")
+		}
+	}
+	{
+		// Generic extern call in a package-level variable.
+		if accSize <= 0 {
+			panic("accSize <= 0")
 		}
 	}
 	{

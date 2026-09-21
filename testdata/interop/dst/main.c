@@ -1,5 +1,10 @@
 #include "main.h"
 
+// -- Variables and constants --
+
+// A generic extern call is allowed at package level.
+static so_unused so_int accSize = sizeof(Account);
+
 // -- Implementation --
 
 // An extern type uchar comes from C header, so an exported function
@@ -34,6 +39,12 @@ int main(void) {
         // Extern constants.
         if (INT64_MAX <= (int64_t)((int64_t)1 << 62)) {
             so_panic("maxInt64 <= 1<<62");
+        }
+    }
+    {
+        // Generic extern call in a package-level variable.
+        if (accSize <= 0) {
+            so_panic("accSize <= 0");
         }
     }
     {
