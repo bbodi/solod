@@ -241,7 +241,7 @@ Networking, uuids and more targets: WebAssembly, 32-bit, freestanding.
 
 ✓ [v0.4](https://github.com/solod-dev/solod/releases/tag/v0.4.0) — Better C interop and more freestanding packages.
 
-⏳ v0.5 — work in progress.
+There are no more releases planned at this time.
 
 ## Contributing
 
