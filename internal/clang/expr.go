@@ -940,6 +940,11 @@ func (g *Generator) checkLitAddress(node ast.Node, lit *ast.CompositeLit) {
 		g.fail(node, "cannot take the address of an array literal; assign it to a variable first")
 	case *types.Map:
 		g.fail(node, "cannot take the address of a map literal; assign it to a variable first")
+	case *types.Struct:
+		// A statement expression has no address.
+		if _, anon := lit.Type.(*ast.StructType); !anon && hasArrayCopies(g.structLitFields(lit)) {
+			g.fail(node, "cannot take the address of a struct literal with an array value; assign it to a variable first")
+		}
 	}
 }
 

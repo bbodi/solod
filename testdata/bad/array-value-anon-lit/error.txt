@@ -1,0 +1,3 @@
+main.go:6:37: cannot use an array value in a composite literal: use an array literal or assign the field separately
+	g := struct{ cells [2]int }{cells: cells}
+	                                   ^here
