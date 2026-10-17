@@ -1,0 +1,3 @@
+main.go:10:7: cannot take the address of a struct literal with an array value; assign it to a variable first
+	g := &Grid{cells: cells}
+	     ^here

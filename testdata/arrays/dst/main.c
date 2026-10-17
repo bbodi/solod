@@ -3,6 +3,7 @@
 // -- Types --
 
 typedef struct box box;
+typedef struct xform xform;
 typedef struct arange arange;
 typedef so_int array[3];
 typedef so_int array1[1];
@@ -13,6 +14,12 @@ typedef so_int grid[2][3];
 typedef struct box {
     so_int nums[3];
 } box;
+
+typedef struct xform {
+    so_int rot[3];
+    so_int n;
+    array scale;
+} xform;
 
 typedef struct arange {
     uint8_t lo;
@@ -25,6 +32,8 @@ static so_int at(so_int a[3], so_int i);
 static so_int* reverse(so_int a[3]);
 static box newBox(void);
 static so_int box_sum(box b, so_int a[3]);
+static void setXform(xform* x, so_int rot[3], array scale);
+static box boxOf(so_int a[3]);
 static so_int sum3(so_int a[3]);
 
 // -- Variables and constants --
@@ -58,6 +67,15 @@ static so_int box_sum(box b, so_int a[3]) {
         total += b.nums[i] + v;
     }
     return total;
+}
+
+// rot and scale decay to pointers in C.
+static void setXform(xform* x, so_int rot[3], array scale) {
+    *x = ({ xform _lit1 = {.n = 7}; memcpy(_lit1.rot, rot, sizeof(so_int[3])); memcpy(_lit1.scale, scale, sizeof(so_int[3])); _lit1; });
+}
+
+static box boxOf(so_int a[3]) {
+    return ({ box _lit1 = {}; memcpy(_lit1.nums, a, sizeof(so_int[3])); _lit1; });
 }
 
 int main(void) {
@@ -474,6 +492,38 @@ int main(void) {
         box c = (box){.nums = {7, 8, 9}};
         if (c.nums[1] != 8) {
             so_panic("want c.nums == {7, 8, 9}");
+        }
+    }
+    {
+        // Array values in struct literals.
+        so_int arr[3] = {1, 2, 3};
+        box b = ({ box _lit1 = {}; memcpy(_lit1.nums, arr, sizeof(so_int[3])); _lit1; });
+        arr[0] = 100;
+        if (b.nums[0] != 1 || b.nums[2] != 3) {
+            so_panic("want b.nums == {1, 2, 3}");
+        }
+        xform x = {};
+        setXform(&x, (so_int[3]){1, 2, 3}, (so_int[3]){4, 5, 6});
+        if (x.rot[2] != 3 || x.n != 7 || x.scale[0] != 4 || x.scale[2] != 6) {
+            so_panic("want x == {{1, 2, 3}, 7, {4, 5, 6}}");
+        }
+        xform y = ({ xform _lit2 = {.n = 8, .scale = {9, 9, 9}}; memcpy(_lit2.rot, arr, sizeof(so_int[3])); _lit2; });
+        if (y.rot[0] != 100 || y.n != 8 || y.scale[1] != 9) {
+            so_panic("want y == {{100, 2, 3}, 8, {9, 9, 9}}");
+        }
+        if (boxOf(arr).nums[0] != 100) {
+            so_panic("want boxOf(arr).nums[0] == 100");
+        }
+        box r = ({ box _lit3 = {}; memcpy(_lit3.nums, reverse(arr), sizeof(so_int[3])); _lit3; });
+        if (r.nums[0] != 3 || r.nums[2] != 100) {
+            so_panic("want r.nums == {3, 2, 100}");
+        }
+        so_Slice bs = (so_Slice){(box[2]){({ box _lit4 = {}; memcpy(_lit4.nums, arr, sizeof(so_int[3])); _lit4; }), (box){.nums = {4, 5, 6}}}, 2, 2};
+        if (so_at(box, bs, 0).nums[1] != 2 || so_at(box, bs, 1).nums[1] != 5) {
+            so_panic("want bs == {{100, 2, 3}, {4, 5, 6}}");
+        }
+        if (box_sum((({ box _lit5 = {}; memcpy(_lit5.nums, arr, sizeof(so_int[3])); _lit5; })), arr) != 210) {
+            so_panic("want box{arr}.sum(arr) == 210");
         }
     }
     (void)aranges;

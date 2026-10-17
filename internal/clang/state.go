@@ -112,6 +112,7 @@ const (
 	tempResult = "res" // result of a call
 	tempSwitch = "sw"  // switch tag
 	tempAssign = "asg" // value from the right side of a multiple assignment
+	tempLit    = "lit" // struct literal with an array field copy
 )
 
 // newTemp returns a fresh name for a temporary variable at node's position.

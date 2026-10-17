@@ -256,13 +256,15 @@ Arrays decay to pointers when passed to functions (no value semantics on calls).
 
 Array assignment uses `memcpy`. Conversion between array types is not supported.
 
-An array-typed element of a composite literal must be an array literal:
+A struct literal can set an array field from an array value. The literal then becomes a statement expression that copies the array with `memcpy`:
 
 ```go
 b1 := Box{nums: [3]int{1, 2, 3}}  // ok
-b2 := Box{nums: arr}              // error: use an array literal
+b2 := Box{nums: arr}              // ok
 var b3 Box; b3.nums = arr         // ok
 ```
+
+Three places still require an array literal: a package-level initializer, an anonymous struct literal, and an array literal element. The address of a struct literal with an array value (`&Box{nums: arr}`) is not supported.
 
 Unnamed array pointer types, like `*[3]int`, are not supported.
 Use a named array type instead:
