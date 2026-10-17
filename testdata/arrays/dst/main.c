@@ -15,7 +15,6 @@ typedef struct box {
     so_int nums[3];
 } box;
 
-// xform holds two array fields around a scalar one.
 typedef struct xform {
     so_int rot[3];
     so_int n;
@@ -70,12 +69,11 @@ static so_int box_sum(box b, so_int a[3]) {
     return total;
 }
 
-// setXform sets x from array parameters, which decay to pointers in C.
+// rot and scale decay to pointers in C.
 static void setXform(xform* x, so_int rot[3], array scale) {
     *x = ({ xform _lit1 = {.n = 7}; memcpy(_lit1.rot, rot, sizeof(so_int[3])); memcpy(_lit1.scale, scale, sizeof(so_int[3])); _lit1; });
 }
 
-// boxOf returns a box that holds a copy of a.
 static box boxOf(so_int a[3]) {
     return ({ box _lit1 = {}; memcpy(_lit1.nums, a, sizeof(so_int[3])); _lit1; });
 }

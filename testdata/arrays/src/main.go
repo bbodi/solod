@@ -39,19 +39,17 @@ func (b box) sum(a [3]int) int {
 	return total
 }
 
-// xform holds two array fields around a scalar one.
 type xform struct {
 	rot   [3]int
 	n     int
 	scale array
 }
 
-// setXform sets x from array parameters, which decay to pointers in C.
+// rot and scale decay to pointers in C.
 func setXform(x *xform, rot [3]int, scale array) {
 	*x = xform{rot: rot, n: 7, scale: scale}
 }
 
-// boxOf returns a box that holds a copy of a.
 func boxOf(a [3]int) box {
 	return box{nums: a}
 }

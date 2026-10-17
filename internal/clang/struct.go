@@ -134,12 +134,9 @@ func (g *Generator) emitStructLit(w io.Writer, n *ast.CompositeLit) {
 	g.emitBareFields(w, n, fields, false)
 }
 
-// emitStructLitCopy emits a struct literal that sets an array field
-// from an array value. A brace initializer cannot copy an array,
-// so a statement expression fills a temporary and copies the arrays in:
+// emitStructLitCopy emits a struct literal as a statement expression,
+// because a brace initializer cannot copy an array:
 // ({ T _lit1 = {.n = 1}; memcpy(_lit1.arr, arr, sizeof(so_int[3])); _lit1; })
-// Every field gets a designator, because the array fields are left out
-// of the initializer.
 func (g *Generator) emitStructLitCopy(w io.Writer, n *ast.CompositeLit, cType string, fields []structLitField) {
 	tmp := g.newTemp(n, tempLit)
 	var inits []structLitField
@@ -149,6 +146,7 @@ func (g *Generator) emitStructLitCopy(w io.Writer, n *ast.CompositeLit, cType st
 		}
 	}
 	fmt.Fprintf(w, "({ %s %s = ", cType, tmp)
+	// Dropping the copied fields shifts positions, so designate every field.
 	g.emitBareFields(w, n, inits, true)
 	fmt.Fprint(w, "; ")
 	for _, f := range fields {
@@ -170,8 +168,8 @@ func (g *Generator) emitBareStructInit(w io.Writer, n *ast.CompositeLit) {
 	g.emitBareFields(w, n, g.structLitFields(n), false)
 }
 
-// emitBareFields emits the fields of struct literal n as a brace initializer.
-// A positional field has no designator unless designate is set.
+// emitBareFields emits fields as a brace initializer.
+// designate forces a designator on positional fields.
 func (g *Generator) emitBareFields(w io.Writer, n *ast.CompositeLit, fields []structLitField, designate bool) {
 	fmt.Fprint(w, "{")
 	for i, f := range fields {
@@ -192,11 +190,11 @@ func (g *Generator) emitBareFields(w io.Writer, n *ast.CompositeLit, fields []st
 
 // structLitField is one element of a struct literal.
 type structLitField struct {
-	name  string     // C field name
-	value ast.Expr   // field value
-	typ   types.Type // field type
-	keyed bool       // written as name: value
-	copy  bool       // an array field set from an array value, which needs memcpy
+	name  string // C field name
+	value ast.Expr
+	typ   types.Type
+	keyed bool // written as name: value
+	copy  bool // array value that needs memcpy
 }
 
 // structLitFields returns the elements of struct literal n.
