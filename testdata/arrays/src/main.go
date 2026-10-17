@@ -39,6 +39,23 @@ func (b box) sum(a [3]int) int {
 	return total
 }
 
+// xform holds two array fields around a scalar one.
+type xform struct {
+	rot   [3]int
+	n     int
+	scale array
+}
+
+// setXform sets x from array parameters, which decay to pointers in C.
+func setXform(x *xform, rot [3]int, scale array) {
+	*x = xform{rot: rot, n: 7, scale: scale}
+}
+
+// boxOf returns a box that holds a copy of a.
+func boxOf(a [3]int) box {
+	return box{nums: a}
+}
+
 type arange struct {
 	lo uint8
 	hi uint8
@@ -444,6 +461,41 @@ func main() {
 		c := box{nums: ([3]int{7, 8, 9})}
 		if c.nums[1] != 8 {
 			panic("want c.nums == {7, 8, 9}")
+		}
+	}
+	{
+		// Array values in struct literals.
+		arr := [3]int{1, 2, 3}
+		b := box{nums: arr}
+		arr[0] = 100
+		if b.nums[0] != 1 || b.nums[2] != 3 {
+			panic("want b.nums == {1, 2, 3}")
+		}
+
+		var x xform
+		setXform(&x, [3]int{1, 2, 3}, array{4, 5, 6})
+		if x.rot[2] != 3 || x.n != 7 || x.scale[0] != 4 || x.scale[2] != 6 {
+			panic("want x == {{1, 2, 3}, 7, {4, 5, 6}}")
+		}
+
+		y := xform{arr, 8, array{9, 9, 9}}
+		if y.rot[0] != 100 || y.n != 8 || y.scale[1] != 9 {
+			panic("want y == {{100, 2, 3}, 8, {9, 9, 9}}")
+		}
+
+		if boxOf(arr).nums[0] != 100 {
+			panic("want boxOf(arr).nums[0] == 100")
+		}
+		r := box{nums: reverse(arr)}
+		if r.nums[0] != 3 || r.nums[2] != 100 {
+			panic("want r.nums == {3, 2, 100}")
+		}
+		bs := []box{{nums: arr}, {nums: [3]int{4, 5, 6}}}
+		if bs[0].nums[1] != 2 || bs[1].nums[1] != 5 {
+			panic("want bs == {{100, 2, 3}, {4, 5, 6}}")
+		}
+		if (box{nums: arr}).sum(arr) != 210 {
+			panic("want box{arr}.sum(arr) == 210")
 		}
 	}
 	_ = aranges

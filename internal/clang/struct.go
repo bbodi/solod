@@ -125,36 +125,112 @@ func (g *Generator) emitStructLit(w io.Writer, n *ast.CompositeLit) {
 		typ = g.types.TypeOf(n)
 	}
 	cType := g.mapTypeName(n, typ)
+	fields := g.structLitFields(n)
+	if !g.state.atTopLevel() && hasArrayCopies(fields) {
+		g.emitStructLitCopy(w, n, cType, fields)
+		return
+	}
 	fmt.Fprintf(w, "(%s)", cType)
-	g.emitBareStructInit(w, n)
+	g.emitBareFields(w, n, fields, false)
+}
+
+// emitStructLitCopy emits a struct literal that sets an array field
+// from an array value. A brace initializer cannot copy an array,
+// so a statement expression fills a temporary and copies the arrays in:
+// ({ T _lit1 = {.n = 1}; memcpy(_lit1.arr, arr, sizeof(so_int[3])); _lit1; })
+// Every field gets a designator, because the array fields are left out
+// of the initializer.
+func (g *Generator) emitStructLitCopy(w io.Writer, n *ast.CompositeLit, cType string, fields []structLitField) {
+	tmp := g.newTemp(n, tempLit)
+	var inits []structLitField
+	for _, f := range fields {
+		if !f.copy {
+			inits = append(inits, f)
+		}
+	}
+	fmt.Fprintf(w, "({ %s %s = ", cType, tmp)
+	g.emitBareFields(w, n, inits, true)
+	fmt.Fprint(w, "; ")
+	for _, f := range fields {
+		if !f.copy {
+			continue
+		}
+		arr, _ := arrayType(f.typ)
+		arrCType := g.mapTypeName(n, arr.Elem()) + arrayDims(arr)
+		fmt.Fprintf(w, "memcpy(%s.%s, ", tmp, f.name)
+		g.emitArrayValue(w, n, f.value, arr)
+		fmt.Fprintf(w, ", sizeof(%s)); ", arrCType)
+	}
+	fmt.Fprintf(w, "%s; })", tmp)
 }
 
 // emitBareStructInit emits a struct literal as a bare initializer
 // (e.g. {.n = 200, .i = 10}) without a compound literal cast prefix.
 func (g *Generator) emitBareStructInit(w io.Writer, n *ast.CompositeLit) {
-	struc := g.types.TypeOf(n).Underlying().(*types.Struct)
+	g.emitBareFields(w, n, g.structLitFields(n), false)
+}
+
+// emitBareFields emits the fields of struct literal n as a brace initializer.
+// A positional field has no designator unless designate is set.
+func (g *Generator) emitBareFields(w io.Writer, n *ast.CompositeLit, fields []structLitField, designate bool) {
 	fmt.Fprint(w, "{")
-	for i, elt := range n.Elts {
+	for i, f := range fields {
 		if i > 0 {
 			fmt.Fprint(w, ", ")
 		}
-		if kv, ok := elt.(*ast.KeyValueExpr); ok {
-			key := kv.Key.(*ast.Ident)
-			fmt.Fprintf(w, ".%s = ", g.fieldNameOf(key))
-			if lit, ok := isAnonStructLit(kv.Value); ok {
-				g.emitBareStructInit(w, lit)
-			} else {
-				g.emitFieldValue(w, n, kv.Value, structFieldType(struc, key.Name))
-			}
+		if f.keyed || designate {
+			fmt.Fprintf(w, ".%s = ", f.name)
+		}
+		if lit, ok := isAnonStructLit(f.value); ok {
+			g.emitBareStructInit(w, lit)
 		} else {
-			if lit, ok := isAnonStructLit(elt); ok {
-				g.emitBareStructInit(w, lit)
-			} else {
-				g.emitFieldValue(w, n, elt, struc.Field(i).Type())
-			}
+			g.emitFieldValue(w, n, f.value, f.typ)
 		}
 	}
 	fmt.Fprint(w, "}")
+}
+
+// structLitField is one element of a struct literal.
+type structLitField struct {
+	name  string     // C field name
+	value ast.Expr   // field value
+	typ   types.Type // field type
+	keyed bool       // written as name: value
+	copy  bool       // an array field set from an array value, which needs memcpy
+}
+
+// structLitFields returns the elements of struct literal n.
+func (g *Generator) structLitFields(n *ast.CompositeLit) []structLitField {
+	struc := g.types.TypeOf(n).Underlying().(*types.Struct)
+	fields := make([]structLitField, len(n.Elts))
+	for i, elt := range n.Elts {
+		f := &fields[i]
+		if kv, ok := elt.(*ast.KeyValueExpr); ok {
+			key := kv.Key.(*ast.Ident)
+			f.name = g.fieldNameOf(key)
+			f.value = kv.Value
+			f.typ = structFieldType(struc, key.Name)
+			f.keyed = true
+		} else {
+			f.name = g.fieldNameAt(struc.Field(i), i)
+			f.value = elt
+			f.typ = struc.Field(i).Type()
+		}
+		_, isArray := arrayType(f.typ)
+		_, isLit := ast.Unparen(f.value).(*ast.CompositeLit)
+		f.copy = isArray && !isLit
+	}
+	return fields
+}
+
+// hasArrayCopies reports whether any field needs an array copy.
+func hasArrayCopies(fields []structLitField) bool {
+	for _, f := range fields {
+		if f.copy {
+			return true
+		}
+	}
+	return false
 }
 
 // emitFieldValue emits a struct literal field value.
